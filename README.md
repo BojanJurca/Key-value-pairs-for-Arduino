@@ -1,4 +1,4 @@
-# C++ key-valu pairs for Arduino (ESP boards)
+# C++ key-value pairs for Arduino (ESP boards)
 
 
 Key-value pairs library. Internal storage is implemented as balanced binary search for good searching performance.
