@@ -13,7 +13,8 @@ Checking error of each function call:
     if (e == kvp3.OK)
         Serial.println ("insert succeeded");
     else
-        Serial.println ("insert error " + String (e));```
+        Serial.println ("insert error " + String (e));
+```
 
 Checking error of multiple operations:
 
@@ -34,7 +35,8 @@ Checking error of multiple operations:
     if (e == kvp3.OK)
         Serial.println ("insert succeeded");
     else
-        Serial.println ("insert error " + String (e));```
+        Serial.println ("insert error " + String (e));
+```
 
 Checking success of iteration. How can it fail in the first place? At the beginning of iteration an internal stack needs to be constructed in order to iterate to a balanced binary search tree. It there is not enough memory available iteration would fail at this point:
 
