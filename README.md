@@ -35,4 +35,5 @@ Checking success of iteration. How can it fail in the first place? At the beginn
     for (auto pair: kvp3)
         Serial.println (String (pair.key) + "-" + String (pair.value));
     if (kvp3.lastErrorCode != kvp3.OK) Serial.println ("keyValuePair iteration error " + String (kvp3.lastErrorCode));
-    kvp3.clearLastErrorCode (); // clear lastErrorCode before next operations```
+    kvp3.clearLastErrorCode (); // clear lastErrorCode before next operations
+```
