@@ -1,9 +1,9 @@
 /*
  * keyValuePairs.h for Arduino ESP boards
  * 
- * This file is part of Key-Value Pair library for Arduino ESP boards: ___________________
+ * This file is part of Cplusplus-key-value-pairs-for-Arduino: https://github.com/BojanJurca/Cplusplus-key-value-pairs-for-Arduino
  * 
- * The data storage is internaly implemented as balanced binary search tree in order to make the searching fast
+ * The data storage is internaly implemented as balanced binary search tree for good searching performance.
  * 
  * Bojan Jurca, March 12, 2023
  *  
