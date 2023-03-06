@@ -32,7 +32,7 @@
            */
 
           enum errorCode {OK = 0, 
-                          OUT_OF_RANGE = -1, // not really needed here but hares the same error codes vith vector library because it is convenient: https://github.com/BojanJurca/Cplusplus-vectors-for-Arduino 
+                          OUT_OF_RANGE = -1, // not really needed here but shares the same error codes with vector library because it is convenient: https://github.com/BojanJurca/Cplusplus-vectors-for-Arduino 
                           BAD_ALLOC = -2, 
                           NOT_FOUND = -3, 
                           NOT_UNIQUE = -4 
@@ -416,11 +416,8 @@
                             / \                / \
                            b   c              a   b
                   */
-                  __balancedBinarySearchTreeNode__ *tmp = (*p)->rightSubtree;                 // picture: tmp = Y
-
-
-                  (*p)->rightSubtree = tmp->leftSubtree;              // picture: X.rightSubtree = b
-                  
+                  __balancedBinarySearchTreeNode__ *tmp = (*p)->rightSubtree; // picture: tmp = Y
+                  (*p)->rightSubtree = tmp->leftSubtree;                      // picture: X.rightSubtree = b
                   if (tmp->rightSubtree == NULL) { // the leftSubtree can not be NULL at this point otherwise tmp wouldn't be unbalanced
                       /* handle trivial case that happens at the leaves level and could preserve unbalance even after rotation
                                | = tmp                | = tmp
