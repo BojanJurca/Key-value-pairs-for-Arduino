@@ -32,9 +32,9 @@
            */
 
           enum errorCode {OK = 0, 
-                          OUT_OF_RANGE = -1, // not really needed here but shares the same error codes with vector library because it is convenient: https://github.com/BojanJurca/Cplusplus-vectors-for-Arduino 
+                          NOT_FOUND = -1, 
                           BAD_ALLOC = -2, 
-                          NOT_FOUND = -3, 
+                          OUT_OF_RANGE = -3, // not really needed here but shares the same error codes with vector library because it is convenient: https://github.com/BojanJurca/Cplusplus-vectors-for-Arduino  
                           NOT_UNIQUE = -4 
           }; // note that all errors are negative numbers
 
@@ -66,8 +66,21 @@
            */
     
           keyValuePairs (std::initializer_list<keyValuePair> il) {
-              for (auto i: il)
-                  insert (i.key, i.value);
+              for (auto i: il) {
+
+                  if (std::is_same<keyType, String>::value)   // if key is of type String ... (if anyone knows hot to do this in compile-time a feedback is welcome)
+                      if (!i.key) {                           // ... check if parameter construction is valid
+                          lastErrorCode = BAD_ALLOC;          // report error if it is not
+                          return;
+                      }
+                  if (std::is_same<valueType, String>::value) // if value is of type String ... (if anyone knows hot to do this in compile-time a feedback is welcome)
+                      if (!i.value) {                         // ... check if parameter construction is valid
+                          lastErrorCode = BAD_ALLOC;          // report error if it is not
+                          return;
+                      }
+
+                int h = __insert__ (&__root__, i.key, i.value); if  (h >= 0) __height__ = h;
+              }  
           }
 
 
@@ -118,8 +131,11 @@
     
           keyValuePairs<keyType, valueType> (keyValuePairs<keyType, valueType>& other) {
               // copy other's elements
-              for (auto e: other)
-                  this->insert (e.key, e.value);
+              for (auto e: other) {
+                  int h = this->__insert__ (&__root__, e.key, e.value); if  (h >= 0) __height__ = h;
+              }
+              // copy the error code as well
+              if (!lastErrorCode) lastErrorCode = other.lastErrorCode;
           }
 
 
@@ -136,8 +152,23 @@
               this->clear (); // clear existing pairs if needed
 
               // copy other's pairs
-              for (auto e: other)
-                  this->insert (e.key, e.value);
+              for (auto e: other) {
+
+                  if (std::is_same<keyType, String>::value)   // if key is of type String ... (if anyone knows hot to do this in compile-time a feedback is welcome)
+                      if (!e.key) {                           // ... check if parameter construction is valid
+                          lastErrorCode = BAD_ALLOC;          // report error if it is not
+                          return this;
+                      }
+                  if (std::is_same<valueType, String>::value) // if value is of type String ... (if anyone knows hot to do this in compile-time a feedback is welcome)
+                      if (!e.value) {                         // ... check if parameter construction is valid
+                          lastErrorCode = BAD_ALLOC;          // report error if it is not
+                          return this;
+                      }
+
+                  int h = this->__insert__ (&__root__, e.key, e.value); if  (h >= 0) __height__ = h;
+              }
+              // copy the error code as well
+              if (!lastErrorCode) lastErrorCode = other.lastErrorCode;
 
               return this;
           }
@@ -154,6 +185,13 @@
            */
           
           valueType *find (keyType key) {
+
+              if (std::is_same<keyType, String>::value)   // if key is of type String ... (if anyone knows hot to do this in compile-time a feedback is welcome)
+                  if (!key) {                             // ... check if parameter construction is valid
+                      lastErrorCode = BAD_ALLOC;          // report error if it is not
+                      return NULL;
+                  }
+
               return __find__ (__root__, key);
           }
 
@@ -161,19 +199,24 @@
           /*
            *  Erases the key-value pair identified by key
            *  
-           *  Returns OK if succeeds and errorCode in case of error:
-           *    - key does't exist
+           *  Returns OK if succeeds and errorCode NOT_FOUND or BAD_ALLOC if String key parameter could not be constructed.
            */
 
           errorCode erase (keyType key) { 
+
+              if (std::is_same<keyType, String>::value)   // if key is of type String ... (if anyone knows hot to do this in compile-time a feedback is welcome)
+                  if (!key) {                             // ... check if parameter construction is valid
+                      return BAD_ALLOC;                   // report error if it is not
+                  }
+
               int h = __erase__ (&__root__, key); 
               if (h < 0) {
 
                   #ifdef __KEY_VALUE_PAIR_H_DEBUG__
-                      Serial.printf ("Error %i: keyValuePairs.insert: out of memory\n", (int) h);
+                      Serial.printf ("Error %i: keyValuePairs.erase: NOT_FOUND\n", (int) h);
                   #endif                  
                 
-                lastErrorCode = (errorCode) h;
+                // lastErrorCode = (errorCode) h;
                 return (errorCode) h;
               } else {
                 __height__ = h;
@@ -187,10 +230,37 @@
            */
 
           errorCode insert (keyValuePair pair) { 
-              return insert (pair.key, pair.value);
+
+              if (std::is_same<keyType, String>::value)   // if key is of type String ... (if anyone knows hot to do this in compile-time a feedback is welcome)
+                  if (!pair.key)                          // ... check if parameter construction is valid
+                      return lastErrorCode = BAD_ALLOC;   // report error if it is not
+              if (std::is_same<valueType, String>::value) // if value is of type String ... (if anyone knows hot to do this in compile-time a feedback is welcome)
+                  if (!pair.value)                        // ... check if parameter construction is valid
+                      return lastErrorCode = BAD_ALLOC;   // report error if it is not
+
+              int h = __insert__ (&__root__, pair.key, pair.value); 
+              if (h < 0) {
+
+                  #ifdef __KEY_VALUE_PAIR_H_DEBUG__
+                      Serial.printf ("Error %i: keyValuePairs.insert\n", (int) h);
+                  #endif                  
+                  
+                  return lastErrorCode = (errorCode) h;
+              } else {
+                  __height__ = h;
+                  return OK;
+              }
           }
 
           errorCode insert (keyType key, valueType value) { 
+
+              if (std::is_same<keyType, String>::value)   // if key is of type String ... (if anyone knows hot to do this in compile-time a feedback is welcome)
+                  if (!key)                               // ... check if parameter construction is valid
+                      return lastErrorCode = BAD_ALLOC;   // report error if it is not
+              if (std::is_same<valueType, String>::value) // if value is of type String ... (if anyone knows hot to do this in compile-time a feedback is welcome)
+                  if (!value)                             // ... check if parameter construction is valid
+                      return lastErrorCode = BAD_ALLOC;   // report error if it is not
+
               int h = __insert__ (&__root__, key, value); 
               if (h < 0) {
 
@@ -275,7 +345,7 @@
                   }
                   // else proceed with climbing up the stack to the first pair that is greater than the current node
                   {
-                      int16_t i = __stackPointer__;
+                      int8_t i = __stackPointer__;
                       -- __stackPointer__;
                       while (__stackPointer__ >= 0 && __stack__ [__stackPointer__]->pair.key < __stack__ [i]->pair.key) __stackPointer__ --;
                       return *this;   
@@ -346,9 +416,18 @@
                       __balancedBinarySearchTreeNode__ *n = new (std::nothrow) __balancedBinarySearchTreeNode__;    
                   #endif
 
-                  if (n == NULL) return BAD_ALLOC;
+                  if (n == NULL) return lastErrorCode = BAD_ALLOC;
                   
                   *n = { {key, value}, NULL, NULL, 0, 0 };
+
+                      // in case of Strings - it is possible that key and value didn't get constructed, so just swap stack memory with parameters - this always succeeds
+                      if (std::is_same<keyType, String>::value)   // if key is of type String ... (if anyone knows hot to do this in compile-time a feedback is welcome)
+                          if (!n->pair.key)                       // ... check if parameter construction is valid
+                              __swapStrings__ ((String *) &n->pair.key, (String *) &key); 
+                      if (std::is_same<valueType, String>::value) // if value is of type String ... (if anyone knows hot to do this in compile-time a feedback is welcome)
+                          if (!n->pair.value)                     // ... check if parameter construction is valid
+                              __swapStrings__ ((String *) &n->pair.value, (String *) &value);
+
                   *p = n;
                   __size__ ++;
                   return 1; // height of the (sub)tree so far
@@ -399,7 +478,7 @@
               // 3. case: the node with the same values already exists 
               if (!((*p)->pair.key < key)) { // meaning at this point that key == (*p)->pair.key
                 // Serial.println ("keyValuePairs.__insert__: 3. case: the node with the same values already exists. Key = " + String (key) + ", node = " + String ((*p)->pair.key));
-                return NOT_UNIQUE;
+                return lastErrorCode = NOT_UNIQUE;
               }
       
               // 4. case: add a new node to the right subtree of the current node
@@ -575,6 +654,14 @@
               (*p) = NULL;
               __size__ --;
               return;
+          }
+
+          // swap strings by swapping their stack memory so constructors doesn't get called and nothing can go wrong like running out of memory meanwhile 
+          void __swapStrings__ (String *a, String *b) {
+              char tmp [sizeof (String)];
+              memcpy (&tmp, a, sizeof (String));
+              memcpy (a, b, sizeof (String));
+              memcpy (b, tmp, sizeof (String));
           }
   
     };

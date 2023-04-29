@@ -22,8 +22,11 @@ void setup () {
 
     // find a value for given key
     String *value = kvp3.find (3);
-    if (value != NULL)  Serial.println ("Value found: " + *value);
-    else                Serial.println ("Value not found");
+    if (value == NULL) {
+        if (kvp3.lastErrorCode == kvp3.BAD_ALLOC) Serial.println ("Out of memory");         // only if key is of type String and find parameter could not be constructed doe to lack of memory
+        else                                      Serial.println ("Key not found");
+    }
+    else                                          Serial.println ("Key found, its value = " + *value);
 
     // delete a pair identified by the key
     kvp3.erase (4);
