@@ -5,17 +5,27 @@
  * 
  * The data storage is internaly implemented as balanced binary search tree for good searching performance.
  * 
- * Bojan Jurca, March 12, 2023
+ * Bojan Jurca, October 10, 2023
  *  
  */
 
 
 #ifndef __KEY_VALUE_PAIRS_H__
-  #define __KEY_VALUE_PAIRS_H__
+    #define __KEY_VALUE_PAIRS_H__
+
+    // TUNNING PARAMETERS
+
+    #define __KEY_VALUE_PAIRS_MAX_STACK_SIZE__ 24 // statically allocated stack needed for iterating through elements, 24 should be enough for the number of elemetns that fit into ESP32's memory
 
 
-  // #define __KEY_VALUE_PAIR_H_EXCEPTIONS__   // uncomment this line if you want keyValuePairs to throw exceptions
-  // #define __KEY_VALUE_PAIR_H_DEBUG__        // uncomment this line for debugging puroposes
+    // #define __KEY_VALUE_PAIR_H_EXCEPTIONS__   // uncomment this line if you want keyValuePairs to throw exceptions
+    // #define __KEY_VALUE_PAIR_H_DEBUG__        // uncomment this line for debugging puroposes
+
+    #ifdef __KEY_VALUE_PAIR_H_DEBUG__
+        #define __key_value_pair_h_debug__(X) { Serial.print("__key_value_pair_h_debug__: ");Serial.println(X); }
+    #else
+        #define __key_value_pair_h_debug__(X) ;
+    #endif
 
 
     template <class keyType, class valueType> class keyValuePairs {
@@ -31,12 +41,31 @@
            * so it is not necessary to check success of each single operation in the code. 
            */
 
-          enum errorCode {OK = 0, 
-                          NOT_FOUND = -1, 
-                          BAD_ALLOC = -2, 
-                          OUT_OF_RANGE = -3, // not really needed here but shares the same error codes with vector library because it is convenient: https://github.com/BojanJurca/Cplusplus-vectors-for-Arduino  
-                          NOT_UNIQUE = -4 
+          enum errorCode {OK = 0, // not all error codes are needed here but they are shared among persistentKeyValuePairs and vectors as well 
+                          NOT_FOUND = -1,               // key is not found
+                          BAD_ALLOC = -2,               // out of memory
+                          OUT_OF_RANGE = -3,            // invalid index
+                          NOT_UNIQUE = -4,              // the key is not unique
+                          DATA_CHANGED = -5,            // unexpected data value found
+                          FILE_IO_ERROR = -6,           // file operation error
+                          NOT_WHILE_ITERATING = -7,     // operation can not be berformed while iterating
+                          DATA_ALREADY_LOADED = -8      // can't load the data if it is already loaded 
           }; // note that all errors are negative numbers
+
+          char *errorCodeText (errorCode e) {
+              switch (e) {
+                  case OK:                  return (char *) "OK";
+                  case NOT_FOUND:           return (char *) "NOT_FOUND";
+                  case BAD_ALLOC:           return (char *) "BAD_ALLOC";
+                  case OUT_OF_RANGE:        return (char *) "OUT_OF_RANGE";
+                  case NOT_UNIQUE:          return (char *) "NOT_UNIQUE";
+                  case DATA_CHANGED:        return (char *) "DATA_CHANGED";
+                  case FILE_IO_ERROR:       return (char *) "FILE_IO_ERROR";
+                  case NOT_WHILE_ITERATING: return (char *) "NOT_WHILE_ITERATING";
+                  case DATA_ALREADY_LOADED: return (char *) "DATA_ALREADY_LOADED";
+              }
+              return NULL; // doesn't happen
+          }
 
           errorCode lastErrorCode = OK;
 
@@ -55,7 +84,7 @@
            *    keyValuePairs<int, String> kvpA;
            */
            
-          keyValuePairs () { }
+          keyValuePairs () {}
     
   
           /*
@@ -113,7 +142,7 @@
 
 
           /*
-           * Clears all the elements from the vector.
+           * Clears all the elements from the balanced binary search tree.
            */
 
           void clear () { __clear__ (&__root__); } 
@@ -187,7 +216,7 @@
           valueType *find (keyType key) {
 
               if (std::is_same<keyType, String>::value)   // if key is of type String ... (if anyone knows hot to do this in compile-time a feedback is welcome)
-                  if (!key) {                             // ... check if parameter construction is valid
+                  if (!(String *) &key) {                 // ... check if parameter construction is valid
                       lastErrorCode = BAD_ALLOC;          // report error if it is not
                       return NULL;
                   }
@@ -205,22 +234,17 @@
           errorCode erase (keyType key) { 
 
               if (std::is_same<keyType, String>::value)   // if key is of type String ... (if anyone knows hot to do this in compile-time a feedback is welcome)
-                  if (!key) {                             // ... check if parameter construction is valid
+                  if (!(String *) &key) {                 // ... check if parameter construction is valid
                       return BAD_ALLOC;                   // report error if it is not
                   }
 
               int h = __erase__ (&__root__, key); 
               if (h < 0) {
-
-                  #ifdef __KEY_VALUE_PAIR_H_DEBUG__
-                      Serial.printf ("Error %i: keyValuePairs.erase: NOT_FOUND\n", (int) h);
-                  #endif                  
-                
-                // lastErrorCode = (errorCode) h;
-                return (errorCode) h;
+                  __key_value_pair_h_debug__ ("erase: " + String (h));
+                  return (errorCode) h;
               } else {
-                __height__ = h;
-                return OK;
+                  __height__ = h;
+                  return OK;
               }
           }
 
@@ -240,11 +264,7 @@
 
               int h = __insert__ (&__root__, pair.key, pair.value); 
               if (h < 0) {
-
-                  #ifdef __KEY_VALUE_PAIR_H_DEBUG__
-                      Serial.printf ("Error %i: keyValuePairs.insert\n", (int) h);
-                  #endif                  
-                  
+                  __key_value_pair_h_debug__ ("insert: " + String (h));
                   return lastErrorCode = (errorCode) h;
               } else {
                   __height__ = h;
@@ -258,16 +278,12 @@
                   if (!key)                               // ... check if parameter construction is valid
                       return lastErrorCode = BAD_ALLOC;   // report error if it is not
               if (std::is_same<valueType, String>::value) // if value is of type String ... (if anyone knows hot to do this in compile-time a feedback is welcome)
-                  if (!value)                             // ... check if parameter construction is valid
+                  if (!(String *) &value)                 // ... check if parameter construction is valid
                       return lastErrorCode = BAD_ALLOC;   // report error if it is not
 
               int h = __insert__ (&__root__, key, value); 
               if (h < 0) {
-
-                  #ifdef __KEY_VALUE_PAIR_H_DEBUG__
-                      Serial.printf ("Error %i: keyValuePairs.insert\n", (int) h);
-                  #endif                  
-                  
+                  __key_value_pair_h_debug__ ("insert: " + String (h));
                   lastErrorCode = (errorCode) h;
                   return (errorCode) h;
               } else {
@@ -292,37 +308,36 @@
               Iterator (keyValuePairs* kvp, int8_t stackSize) {
                   __kvp__ = kvp;
   
-                  if (stackSize == 0) return; // when end () is beeing called stack for balanced binary search tree iteration is not needed
+                  if (!kvp || !stackSize) return; // when end () is beeing called stack for balanced binary search tree iteration is not needed
   
                   // create a stack for balanced binary search tree iteration
                   
-                  #ifdef __KEY_VALUE_PAIR_H_EXCEPTIONS__
-                      __stack__ = new keyValuePairs::__balancedBinarySearchTreeNode__ *[stackSize](); // initialize stack with NULL pointers
-                  #else
-                      __stack__ = new (std::nothrow) keyValuePairs::__balancedBinarySearchTreeNode__ *[stackSize](); // initialize stack with NULL pointers
-                  #endif
-  
-                  if (__stack__ == NULL) {
-
-                      #ifdef __KEY_VALUE_PAIR_H_DEBUG__
-                          Serial.printf ("Error %i: keyValuePairs.Iterator: out of memory, can't create stack to iterate through balanced binary search tree\n", (int) BAD_ALLOC);
-                      #endif
-
-                      __kvp__->lastErrorCode = BAD_ALLOC;
-                      return;
-                  }
+                  /// #ifdef __KEY_VALUE_PAIR_H_EXCEPTIONS__
+                  ///     __stack__ = new keyValuePairs::__balancedBinarySearchTreeNode__ *[stackSize](); // initialize stack with NULL pointers
+                  /// #else
+                  ///     __stack__ = new (std::nothrow) keyValuePairs::__balancedBinarySearchTreeNode__ *[stackSize](); // initialize stack with NULL pointers
+                  /// #endif
+                  /// if (__stack__ == NULL) {
+                  ///     __key_value_pair_h_debug__ ("Iterator: not enough memory to create stack.");
+                  ///     __kvp__->lastErrorCode = BAD_ALLOC;
+                  ///     return;
+                  /// }
+                  if (stackSize >= __KEY_VALUE_PAIRS_MAX_STACK_SIZE__) throw (BAD_ALLOC);
   
                   // find the lowest pair in the balanced binary search tree (tjhis would be the leftmost one) and fill the stack meanwhile
                   keyValuePairs<keyType, valueType>::__balancedBinarySearchTreeNode__* p = kvp->__root__;
+
                   while (p) {
-                      __stack__ [++ __stackPointer__] = p;
+                      __stack__ [++ __stackPointer__] = p;                      
                       p = p->leftSubtree;
                   }                
               }
 
 
               // free the memory occupied by the stack
-              ~Iterator () { if (__stack__) delete [] __stack__; }
+              ~Iterator () { 
+                  /// if (__stack__) delete [] __stack__; 
+              }
 
               
               // * operator
@@ -330,6 +345,7 @@
           
               // ++ (prefix) increment actually moves the state of the stack so that the last element points to the next balanced binary search tree node
               Iterator& operator ++ () { 
+
                   // the current node is pointed to by stack pointer, move to the next node 
                   
                   // if the node has a right subtree find the leftmost element in the right subtree and fill the stack meanwhile
@@ -348,7 +364,7 @@
                       int8_t i = __stackPointer__;
                       -- __stackPointer__;
                       while (__stackPointer__ >= 0 && __stack__ [__stackPointer__]->pair.key < __stack__ [i]->pair.key) __stackPointer__ --;
-                      return *this;   
+                      return *this;
                   }
               }  
 
@@ -360,12 +376,14 @@
               keyValuePairs* __kvp__;
 
               // a stack is needed to iterate through tree nodes
-              keyValuePairs::__balancedBinarySearchTreeNode__ **__stack__ = NULL;
+              /// keyValuePairs::__balancedBinarySearchTreeNode__ **__stack__ = NULL;
+              keyValuePairs::__balancedBinarySearchTreeNode__ *__stack__ [__KEY_VALUE_PAIRS_MAX_STACK_SIZE__];
               int8_t __stackPointer__ = -1;
+
           };      
  
           Iterator begin () { return Iterator (this, __height__); } // C++ only iterates with begin instance ...
-          Iterator end ()   { return Iterator (this, 0); } // ... so end instance doesn't need its own stack at all
+          Iterator end ()   { return Iterator (NULL, 0); } // ... so end instance is not really needed and doesn't need its own stack at all
 
 
           #ifdef __KEY_VALUE_PAIR_H_DEBUG__
