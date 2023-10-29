@@ -322,6 +322,8 @@
                   ///     __kvp__->lastErrorCode = BAD_ALLOC;
                   ///     return;
                   /// }
+                  // memset ((byte *) __stack__, 0, sizeof (__stack__)); // clear the stack
+
                   if (stackSize >= __KEY_VALUE_PAIRS_MAX_STACK_SIZE__) throw (BAD_ALLOC);
   
                   // find the lowest pair in the balanced binary search tree (tjhis would be the leftmost one) and fill the stack meanwhile
@@ -330,7 +332,8 @@
                   while (p) {
                       __stack__ [++ __stackPointer__] = p;                      
                       p = p->leftSubtree;
-                  }                
+                  }
+                  __key_value_pair_h_debug__ ("Iterator: starting at: " + String ( __stack__ [__stackPointer__]->pair.key ));
               }
 
 
@@ -350,8 +353,9 @@
                   
                   // if the node has a right subtree find the leftmost element in the right subtree and fill the stack meanwhile
                   if (__stack__ [__stackPointer__]->rightSubtree != NULL) {
+                      __key_value_pair_h_debug__ ("Iterator: going to the right subtree");
                       keyValuePairs<keyType, valueType>::__balancedBinarySearchTreeNode__* p = __stack__ [__stackPointer__]->rightSubtree;
-                      if (p && p != __stack__ [__stackPointer__ + 1]) { // if the right subtree has not ben visited yet proceed with the right subtree
+                      if (p && p != __stack__ [__stackPointer__ + 1]) { // if the right subtree has not ben visited yet, proceed with the right subtree
                             while (p) {
                                 __stack__ [++ __stackPointer__] = p;
                                 p = p->leftSubtree;
@@ -361,6 +365,7 @@
                   }
                   // else proceed with climbing up the stack to the first pair that is greater than the current node
                   {
+                      __key_value_pair_h_debug__ ("Iterator: climb up the stack to the first greater key");
                       int8_t i = __stackPointer__;
                       -- __stackPointer__;
                       while (__stackPointer__ >= 0 && __stack__ [__stackPointer__]->pair.key < __stack__ [i]->pair.key) __stackPointer__ --;
@@ -377,7 +382,7 @@
 
               // a stack is needed to iterate through tree nodes
               /// keyValuePairs::__balancedBinarySearchTreeNode__ **__stack__ = NULL;
-              keyValuePairs::__balancedBinarySearchTreeNode__ *__stack__ [__KEY_VALUE_PAIRS_MAX_STACK_SIZE__];
+              keyValuePairs::__balancedBinarySearchTreeNode__ *__stack__ [__KEY_VALUE_PAIRS_MAX_STACK_SIZE__] = {};
               int8_t __stackPointer__ = -1;
 
           };      
@@ -548,15 +553,17 @@
           }
   
           int __erase__ (__balancedBinarySearchTreeNode__ **p, keyType& key) { // returns the height of balanced binary search tree or error
+              __key_value_pair_h_debug__ ("__erase__ ( ... , " + String (key) + " )");
+
               // 1. case: a leaf has been reached - key was not found
               if ((*p) == NULL) {
-                  // Serial.println ("keyValuePairs.__erase__: 1. case: a leaf has been reached - key was not found. Key = " + String (key));
+                  __key_value_pair_h_debug__ ("__erase__: 1. case: a leaf has been reached - key was not found.");
                   return NOT_FOUND; 
               }
                       
               // 2. case: delete the node from the left subtree
               if (key < (*p)->pair.key) {
-                  // Serial.println ("keyValuePairs.__erase__: 2. case: delete the node from the left subtree. Key = " + String (key) + ", node = " + String ((*p)->pair.key));
+                  __key_value_pair_h_debug__ ("__erase__: 2. case: delete the node from the left subtree.");
                   int h = __erase__ (&((*p)->leftSubtree), key);
                   if (h < 0) return h; // < 0 means an error                    
                   (*p)->leftSubtreeHeight = h;
@@ -583,33 +590,36 @@
               // 3. case: found
               if (!((*p)->pair.key < key)) { // meaning at this point that key == (*p)->pair.key
                   // 3.a. case: delete a node with no children
-                  // Serial.println ("keyValuePairs.__erase__: 3.a. case: delete a node with no children. Key = " + String (key) + ", node = " + String ((*p)->pair.key));
+                  __key_value_pair_h_debug__ ("__erase__: 3.a. case: delete a node with no children.");
                   if ((*p)->leftSubtree == NULL && (*p)->rightSubtree == NULL) {
                       // remove the node
                       delete (*p);
                       (*p) = NULL;
+                      __size__ --;
                       return OK;
                   }
                   // 3.b. case: delete a node with only left child 
-                  // Serial.println ("keyValuePairs.__erase__: 3.b. case: delete a node with only left child. Key = " + String (key) + ", node = " + String ((*p)->pair.key));
+                  __key_value_pair_h_debug__ ("__erase__: 3.b. case: delete a node with only left child.");
                   if ((*p)->rightSubtree == NULL) {
                       // remove the node and replace it with its child
                       __balancedBinarySearchTreeNode__ *tmp = (*p);
                       (*p) = (*p)->leftSubtree;
                       delete tmp;
+                      __size__ --;
                       return max ((*p)->leftSubtreeHeight, (*p)->rightSubtreeHeight) + 1; // return the new hight of a subtree
                   }
                   // 3.c. case: delete a node with only right child 
-                  // Serial.println ("keyValuePairs.__erase__: 3.c. case: delete a node with only right child. Key = " + String (key) + ", node = " + String ((*p)->pair.key));
+                  __key_value_pair_h_debug__ ("__erase__: 3.c. case: delete a node with only right child.");
                   if ((*p)->leftSubtree == NULL) {
                       // remove the node and replace it with its child
                       __balancedBinarySearchTreeNode__ *tmp = (*p);
                       (*p) = (*p)->rightSubtree;
                       delete tmp;
+                      __size__ --;
                       return max ((*p)->leftSubtreeHeight, (*p)->rightSubtreeHeight) + 1; // return the new hight of a subtree
                   }
                   // 3.d. case: deleting the node with both children
-                      // Serial.println ("keyValuePairs.__erase__: 3.d. case: deleting the node with both children. Key = " + String (key) + ", node = " + String ((*p)->pair.key));
+                      __key_value_pair_h_debug__ ("__erase__: 3.d. case: delete a node with both children.");
                       // replace the node with its inorder successor (inorder predecessor would also do) and then delete it
                       // find inorder successor = leftmost node from right subtree
                       __balancedBinarySearchTreeNode__ *q = (*p)->rightSubtree; while (q->leftSubtree) q = q->leftSubtree;
@@ -634,11 +644,12 @@
                           // correct height information of right subtree - we know that right subtree exists (picture: Y node)
                           (*p)->rightSubtreeHeight = max ((*p)->rightSubtree->leftSubtreeHeight, (*p)->rightSubtree->rightSubtreeHeight) + 1;
                       }
+                      __size__ --;
                       return max ((*p)->leftSubtreeHeight, (*p)->rightSubtreeHeight) + 1;
               } // 3. case: found
                       
               // 4. case: delete the node from the right subtree of the current node
-                  // Serial.println ("keyValuePairs.__erase__: 4. case: delete the node from the right subtree. Key = " + String (key) + ", node = " + String ((*p)->pair.key));              
+                  __key_value_pair_h_debug__ ("__erase__: 4. case: delete the node from the right subtree.");
                   int h = __erase__ (&((*p)->rightSubtree), key);
                   if (h < 0) return h; // < 0 means an error                    
                   (*p)->rightSubtreeHeight = h;
@@ -659,6 +670,8 @@
                       // correct height information of right subtree - we know that right subtree exists (picture: Y node)
                       (*p)->rightSubtreeHeight = max ((*p)->rightSubtree->leftSubtreeHeight, (*p)->rightSubtree->rightSubtreeHeight) + 1;
                   }
+              
+              __key_value_pair_h_debug__ ("__erase__: unexpected end of function.");
               return max ((*p)->leftSubtreeHeight, (*p)->rightSubtreeHeight) + 1;
           }
   
