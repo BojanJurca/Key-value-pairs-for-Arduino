@@ -1,12 +1,15 @@
 #include <WiFi.h>
 
-#include "keyValuePairs.h"
+#include "keyValuePairs.hpp"
 
 void setup () {
     Serial.begin (115200);
 
     // constructor of key-value pairs from brace enclosed initializer list
     keyValuePairs<int, String> kvp1 = { {4, "four"}, {3, "tree"}, {6, "six"}, {5, "five"} };
+
+    for (auto pair: kvp1)
+        Serial.println (String (pair.key) + "-" + String (pair.value));
 
     // copy-constructor
     keyValuePairs<int, String> kvp2 = kvp1;
@@ -30,37 +33,50 @@ void setup () {
 
     // delete a pair identified by the key
     kvp3.erase (4);
-    
+
     // scan key-value pairs in accending (sorted) order
     Serial.println ("--- kvp3 = ---");
     for (auto pair: kvp3)
         Serial.println (String (pair.key) + "-" + String (pair.value));
 
     // checking error of each function call:
-    keyValuePairs<int, String>::errorCode e = kvp3.insert ( {9, "nine"} );
+    int e = kvp3.insert ( {9, "nine"} );
     if (e == kvp3.OK)
         Serial.println ("insert succeeded");
     else
-        Serial.println ("insert error " + String (e));
+        Serial.printf ("insert error: %s\n", kvp3.errorCodeText (e));
     
     // or checking errors of multiple operations:
     for (int i = 1000; i < 1100; i++)
         kvp3.insert (i, String (i));
+
     if (kvp3.lastErrorCode == kvp3.OK)
         Serial.println ("100 inserts succeeded");
     else {
-        Serial.println ("100 inserts error " + String (kvp3.lastErrorCode));
+        Serial.printf ("100 inserts error: %s\n", kvp3.errorCodeText (kvp3.lastErrorCode));
         kvp3.clearLastErrorCode (); // clear lastErrorCode before next operations
     }
 
-    // Checking success of iteration. Why would it fail? At the beginning of iteration
-    // an internal stack needs to be constructed in order to iterate to balanced binary
-    // search tree. It there is not enough memory avalilable iteration would fail.
-    Serial.println ("--- kvp3 = ---");
-    for (auto pair: kvp3)
-        Serial.println (String (pair.key) + "-" + String (pair.value));
-    if (kvp3.lastErrorCode != kvp3.OK) Serial.println ("keyValuePair iteration error " + String (kvp3.lastErrorCode));
-    kvp3.clearLastErrorCode (); // clear lastErrorCode before next operations
+    // find min (max) values
+    Serial.println ("--- min_element, max_element ---");
+    auto minElement = min_element (kvp3);
+    if (minElement) // check if min element is found (if kvp3 is not empty)
+        Serial.printf ("min element (min value) of kvp3 = (%i, %s)\n", (*minElement).key, (*minElement).value.c_str ());
+    auto maxElement = max_element (kvp3);
+    if (maxElement) // check if max element is found (if kvp3 is not empty)
+        Serial.printf ("max element (max value) of kvp3 = (%i, %s)\n", (*maxElement).key, (*maxElement).value.c_str ());
+
+
+    // find first (last) keys
+    Serial.println ("--- first_element, last_element ---");
+    auto firstElement = first_element (kvp3);
+    if (firstElement) // check if first element is found (if kvp3 is not empty)
+        Serial.printf ("first element (min key) of kvp3 = (%i, %s)\n", (*firstElement).key, (*firstElement).value.c_str ());
+
+    auto lastElement = last_element (kvp3);
+    if (lastElement) // check if last element is found (if kvp3 is not empty)
+        Serial.printf ("last element (max key) of kvp3 = (%i, %s)\n", (*lastElement).key, (*lastElement).value.c_str ());
+
 }
 
 void loop () {

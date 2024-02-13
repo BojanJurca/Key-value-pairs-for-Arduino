@@ -1,7 +1,7 @@
 # C++ key-value pairs for Arduino (ESP boards)
 
 
-This is an in-memory key-value pairs library. If you are looking for a persistent (disk) key-value storage, please take a look at [https://github.com/BojanJurca/Arduino-Esp32-key-value-database](https://github.com/BojanJurca/Arduino-Esp32-key-value-database)
+This is an in-memory key-value pairs library. If you are looking for a persistentï¿½(disk) key-value storage, please take a look atï¿½[https://github.com/BojanJurca/Arduino-Esp32-key-value-database](https://github.com/BojanJurca/Arduino-Esp32-key-value-database).
 
 Internal storage is implemented as balanced binary search for good searching performance. Error handling (like running out of memory, etc) is also supported. 
 
