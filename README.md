@@ -1,60 +1,142 @@
-# C++ key-value pairs for Arduino (ESP boards)
+# Key-value pairs for Arduino (ESP boards)
 
 
-This is an in-memory key-value pairs library. If you are looking for a persistent(disk) key-value storage, please take a look at[https://github.com/BojanJurca/Arduino-Esp32-key-value-database](https://github.com/BojanJurca/Arduino-Esp32-key-value-database).
-
-Internal storage is implemented as balanced binary search for good searching performance. Error handling (like running out of memory, etc) is also supported. 
+This is an in-memory key-value pairs library. Internal storage is implemented as balanced binary search tree for good performance. 
 
 
-Checking for an error of each function call:
+### Examples of key-value pairs constructors
 
 ```C++
-    keyValuePairs<int, String>::errorCode e = kvp3.insert ( {9, "nine"} );
-    if (e == kvp3.OK)
-        Serial.println ("insert succeeded");
-    else
-        Serial.println ("insert error " + String (e));
+vector<String> v1;                          // empty vector of Strings
+vector<int> v2 ( { 100, 200, 300, 400 } );  // constructor of vector of integers from brace enclosed initializer list
+vector<int> v3 = { 500, 600, 700, 800 };    // constructor of vector of integers and its initialization from brace enclosed initializer list
+vector<int> v4 = v3;                        // copy-constructor
 ```
 
-Checking for errors of multiple operations:
+### Examples of key-value pairs assignment
 
 ```C++
-    for (int i = 1000; i < 1100; i++)
-        kvp3.insert (i, String (i));
-    if (kvp3.lastErrorCode == kvp3.OK)
-        Serial.println ("100 inserts succeeded");
+v2 = { 3, 2, 1 };                           // assignment from brace enclosed initializer list
+v3 = v2;                                    // assignemnt from another vector
+```
+
+
+### Examples of inserting new key-value pair
+
+```C++
+kvp3.insert ( {7, "seven"} );
+kvp3.insert ( 8, "eight" );
+```
+
+
+### Examples of searching for value that belongs to a given key
+
+```C++
+String *strValue = kvp3.find (6);
+if (strValue != NULL) // OK
+    Serial.println ("Key found, its value = " + *strValue); 
+else
+    Serial.println ("Key not found");
+
+
+// when the key is an object (like String) more things can go wrong and more checking is needed
+keyValuePairs<String, int> kvp5 = { {"four", 4}, {"tree", 3}, {"six", 6}, {"five", 5} }; 
+
+kvp5.clearErrorFlags ();  // clear possible error flags from previous operations
+int *intValue = kvp5.find ("six");
+if (intValue != NULL) // OK
+    Serial.println ("Key found, its value = " + String (*intValue)); 
+else {
+    // the key probably doesn't exist but we can't be 100% sure that some other error didn't occur
+    if (kvp5.errorFlags () & NOT_FOUND)  Serial.println ("Key not found");  
     else {
-        Serial.println ("100 inserts error " + String (kvp3.lastErrorCode));
-        kvp3.clearLastErrorCode (); // clear lastErrorCode before next operations
+        Serial.print ("An error occured while searching for the key ");
+        // check flags for details
+        if (kvp5.errorFlags () & BAD_ALLOC)      Serial.printf ("BAD_ALLOC\n");
+        if (kvp5.errorFlags () & NOT_FOUND)      Serial.printf ("NOT_FOUND\n");
+        if (kvp5.errorFlags () & NOT_UNIQUE)     Serial.printf ("NOT_UNIQUE\n");
+        if (kvp5.errorFlags () & CANT_DO_IT_NOW) Serial.printf ("CANT_DO_IT_NOW\n");
     }
+}
 ```
 
-Checking for a success of iteration. How can iteration fail in the first place? At the beginning of iteration an internal stack needs to be created in order to iterate through a balanced binary search tree. If there is not enough memory available for the internal stack, the iteration would fail:
+
+### Example of deleting key-value pair for a given key
 
 ```C++
-    for (auto pair: kvp3)
-        Serial.println (String (pair.key) + "-" + String (pair.value));
-    if (kvp3.lastErrorCode != kvp3.OK) Serial.println ("keyValuePair iteration error " + String (kvp3.lastErrorCode));
-    kvp3.clearLastErrorCode (); // clear lastErrorCode before next operations
+kvp4.erase (4);
 ```
 
-## Some thoughts and numbers
 
-### How many key-value pairs can reside in the controller's memory?
+### Examples of scanning through key-value pairs (in ascending order of keys)
 
-Well, it depends, but if we make some assumptions we can give some answers. Say keyValuePairs is running on ESP32 with a partition scheme having 1.2 MB app memory and relatively small key-value pairs of 16 bit integer keys and 32 bit integer values. Then up to 7700 key-value pairs can fit into the controller's heap memory.
-
-keyValuePairs uses 30 extra bytes for each pair it contains, to maintain balanced binary tree structure. Memory efficiency is thus low, only 6 out of 36 bytes (17 %) hold useful information. But if more complex data types are used for storing values, like short Strings for example, each key-value pair would use more memory so memory efficiency would improve (to some 37 %) but the total number of pairs that fit into memory would go down to some 5700.
-
-### How fast the insert and find operations are?
-
-Time complexity of a balanced binary search tree can be estimated by O (log n), where n is the number of key-value pairs already in the tree. With an increasing number of pairs we can expect that operation time would also increase but very slowly. As we have seen, n doesn't get very high, having only a small memory of the controller. Here are some measurements:
-
-![insert_find_times](insert_find_times.gif)
+```C++
+for (auto pair: kvp3)
+    Serial.println (String (pair->key) + "-" + pair->value);
+```
 
 
+### Finding the first and the last key-vlue pairs (min and max keys)
+
+```C++
+auto firstElement = first_element (kvp3);
+if (firstElement) // check if first element is found (if kvp3 is not empty)
+    Serial.printf ("first element (min key) of kvp3 = (%i, %s)\n", (*firstElement)->key, (*firstElement)->value.c_str ());
+
+auto lastElement = last_element (kvp3);
+if (lastElement) // check if last element is found (if kvp3 is not empty)
+    Serial.printf ("last element (max key) of kvp3 = (%i, %s)\n", (*lastElement)->key, (*lastElement)->value.c_str ());
+```
 
 
+### Finding min and max key-value pairs (min and max values)
+
+```C++
+auto minElement = min_element (kvp3);
+if (minElement) // check if min element is found (if kvp3 is not empty)
+    Serial.printf ("min element (min value) of kvp3 = (%i, %s)\n", (*minElement)->key, (*minElement)->value.c_str ());
+
+auto maxElement = max_element (kvp3);
+if (maxElement) // check if max element is found (if kvp3 is not empty)
+    Serial.printf ("max element (max value) of kvp3 = (%i, %s)\n", (*maxElement)->key, (*maxElement)->value.c_str ());
+```
 
 
+### Detecting errors that occured in key-value pairs operations
 
+```C++
+signed char e = kvp3.insert ( {9, "nine"} );
+if (!e) // OK
+    Serial.println ("insert succeeded");
+else {
+    // report error or check flags
+    Serial.printf ("insert error: ");
+    switch (e) {
+        case BAD_ALLOC:       Serial.printf ("BAD_ALLOC\n"); break;
+        case NOT_FOUND:       Serial.printf ("NOT_FOUND\n"); break;
+        case NOT_UNIQUE:      Serial.printf ("NOT_UNIQUE\n"); break;
+        case CANT_DO_IT_NOW:  Serial.printf ("CANT_DO_IT_NOW\n"); break;
+    }
+}
+```
+
+
+### Checking if an error has occurred only once after many key-value pairs operations
+
+```C++
+kvp3.clearErrorFlags ();  // clear possible error flags from previous operations
+for (int i = 1000; i < 1100; i++)
+    kvp3.insert (i, String (i));
+
+e = kvp3.errorFlags ();
+if (!e) // OK
+    Serial.println ("100 inserts succeeded");
+else {
+    Serial.printf ("100 inserts error: ");  // check flags for details
+    if (e & BAD_ALLOC)      Serial.printf ("BAD_ALLOC\n");
+    if (e & NOT_FOUND)      Serial.printf ("NOT_FOUND\n");
+    if (e & NOT_UNIQUE)     Serial.printf ("NOT_UNIQUE\n");
+    if (e & CANT_DO_IT_NOW) Serial.printf ("CANT_DO_IT_NOW\n");
+}
+
+```
